@@ -1,0 +1,25 @@
+name: windows_flavourizer
+description: Automates multi-flavor Windows runner setup for Flutter projects on IntelliJ IDEA and VS Code
+version: 0.0.1
+homepage: https://github.com/Tinalexman/windows_flavourizer
+repository: https://github.com/Tinalexman/windows_flavourizer
+issue_tracker: https://github.com/Tinalexman/windows_flavourizer/issues
+topics:
+  - flutter
+  - windows
+  - flavor
+  - cli
+  - runner
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  args: ^2.7.0
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6
+
+executables:
+  windows_flavourizer:
