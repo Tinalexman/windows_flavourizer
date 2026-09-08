@@ -178,6 +178,35 @@ my_flutter_app/
 
 ---
 
+## ⚠️ Assumptions and Prerequisites
+
+### Standard Flutter CMake Templates
+- It assumes `windows/CMakeLists.txt` uses the standard Flutter variable definition line `set(BINARY_NAME "...")` and the default installation prefix block (`if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)...`).
+- It assumes `windows/runner/CMakeLists.txt` declares `add_executable(${BINARY_NAME} WIN32` as the target anchor for injecting `isolate_flavor_runner_target`.
+- Projects with custom, non-standard CMake templates may require manual adjustments.
+
+### Windows Host Environment
+- It assumes execution on Windows where `powershell.exe` is present in `PATH`.
+- It assumes the local security/execution policy allows `-ExecutionPolicy Bypass` when executing `ensure_binary.ps1`.
+
+### Standard Windows Executable Output Paths
+It assumes the compiled artifact resides at:
+
+```plaintext
+build\windows\x64\<flavor>\runner\<flavor>\Debug\<baseName>_<flavor>.exe
+```
+
+If a project renames the target binary inside CMake to something other than `${baseName}_${flavor}`, the runner will not locate it.
+
+### IDE Workspace Layouts
+- **IntelliJ / Android Studio**: Assumes the standard `.idea/` folder structure exists (or will be parsed on open) so it can register project-contained `.idea/runConfigurations/*.xml` files.
+- **VS Code**: Assumes configurations should live inside `.vscode/tasks.json` and `.vscode/launch.json`.
+
+### Platform Scope
+It remains strictly targeted at Windows desktop runners (`windows/`). It does not configure iOS/macOS Xcode schemes or Android Gradle build variants beyond reading Gradle flavors for discovery.
+
+---
+
 ## 🛠️ Troubleshooting
 
 - **First-Time Build Takes Time**: The very first time you launch a flavor, the pre-launch task will compile the native Windows binary. Subsequent launches will detect the existing binary and start instantly.

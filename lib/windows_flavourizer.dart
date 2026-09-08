@@ -11,8 +11,7 @@ ArgParser buildArgParser() {
     ..addMultiOption(
       'flavors',
       abbr: 'f',
-      help: 'Comma-separated list of flavors',
-      defaultsTo: ['dev', 'staging', 'prod'],
+      help: 'Comma-separated list of flavors (optional if auto-detected)',
     )
     ..addOption(
       'ide',
@@ -37,7 +36,106 @@ ArgParser buildArgParser() {
       abbr: 'v',
       negatable: false,
       help: 'Show version information and exit.',
+    )
+    ..addFlag(
+      'scaffold-entry-points',
+      abbr: 's',
+      help: 'Automatically create lib/main_<flavor>.dart if missing',
+      defaultsTo: false,
     );
+}
+
+/// Detect if the project already has flavors configured
+List<String> detectFlavors(Directory projectDir) {
+  Set<String> flavors = {};
+
+  // Source 1: Check lib/main_*.dart files
+  Directory libDir = Directory('${projectDir.path}/lib');
+  if (libDir.existsSync()) {
+    Iterable<File> mainFiles = libDir.listSync().whereType<File>().where(
+        (file) => RegExp(r'^main_[a-zA-Z0-9_-]+\.dart$')
+            .hasMatch(file.uri.pathSegments.last));
+
+    for (File file in mainFiles) {
+      String name = file.uri.pathSegments.last;
+      String flavor = name.replaceFirst('main_', '').replaceFirst('.dart', '');
+      flavors.add(flavor);
+    }
+  }
+
+  // Source 2: Check android/app/build.gradle (or .kts)
+  File gradleFile = File('${projectDir.path}/android/app/build.gradle');
+  File gradleKtsFile = File('${projectDir.path}/android/app/build.gradle.kts');
+  File? targetGradle = gradleFile.existsSync()
+      ? gradleFile
+      : (gradleKtsFile.existsSync() ? gradleKtsFile : null);
+
+  if (targetGradle != null) {
+    String content = targetGradle.readAsStringSync();
+    // Regex matching: productFlavors { flavorName { ... } }
+    RegExp flavorBlockRegex =
+        RegExp(r'productFlavors\s*\{([^}]+)\}', multiLine: true);
+    RegExpMatch? match = flavorBlockRegex.firstMatch(content);
+    if (match != null) {
+      String blockContent = match.group(1)!;
+      RegExp entryRegex = RegExp(r'([a-zA-Z0-9_-]+)\s*\{');
+      for (RegExpMatch entry in entryRegex.allMatches(blockContent)) {
+        String flavor = entry.group(1)!.trim();
+        if (flavor != 'create') {
+          // Filter out Kotlin DSL create("flavor") keyword if partially matched
+          flavors.add(flavor);
+        }
+      }
+    }
+  }
+
+  // Source 3: Check flavorizr configuration in pubspec.yaml
+  File pubspecFile = File('${projectDir.path}/pubspec.yaml');
+  if (pubspecFile.existsSync()) {
+    String content = pubspecFile.readAsStringSync();
+    if (content.contains('flavorizr:')) {
+      RegExp flavorizrRegex =
+          RegExp(r'^\s{4}([a-zA-Z0-9_-]+):\s*$', multiLine: true);
+      Iterable<RegExpMatch> matches = flavorizrRegex.allMatches(content);
+      for (RegExpMatch m in matches) {
+        flavors.add(m.group(1)!.trim());
+      }
+    }
+  }
+
+  return flavors.toList()..sort();
+}
+
+void scaffoldMissingEntrypoints(
+  Directory projectDir,
+  String baseName,
+  List<String> flavors,
+) {
+  Directory libDir = Directory('${projectDir.path}/lib');
+  if (!libDir.existsSync()) {
+    libDir.createSync(recursive: true);
+  }
+
+  for (String flavor in flavors) {
+    File entrypoint = File('${libDir.path}/main_$flavor.dart');
+    if (!entrypoint.existsSync()) {
+      entrypoint.writeAsStringSync('''import 'package:flutter/material.dart';
+import 'package:$baseName/main.dart' as app;
+
+/// Global access to active flavor if needed
+const String currentFlavor = '$flavor';
+
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Launch base application
+  app.main();
+}
+''');
+      stdout
+          .writeln(' [x] Scaffolded missing entrypoint: lib/main_$flavor.dart');
+    }
+  }
 }
 
 /// Extracts the project name from the `pubspec.yaml` in [dir].
@@ -110,6 +208,24 @@ int run(
     error.writeln(
         'Error: Could not determine base binary name from pubspec.yaml.');
     return 1;
+  }
+
+  if (flavors.isEmpty) {
+    stdout.writeln('No flavors specified with -f. Attempting auto-detection...');
+    flavors = detectFlavors(dir);
+
+    if (flavors.isEmpty) {
+      stderr.writeln(
+        'Could not auto-detect flavors. Please pass flavors explicitly:\n'
+            '  windows_flavor_tool -f dev,staging,prod',
+      );
+      exit(1);
+    }
+    stdout.writeln('Auto-detected flavors: $flavors\n');
+  }
+
+  if (results['scaffold-entry-points'] as bool) {
+    scaffoldMissingEntrypoints(dir, baseName, flavors);
   }
 
   output.writeln('Setting up Windows flavors for "$baseName"');
