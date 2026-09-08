@@ -296,14 +296,12 @@ bool patchRootCMake(Directory dir, String baseName, {StringSink? out}) {
 
   String content = file.readAsStringSync();
 
-  // 1. Force CMAKE_INSTALL_PREFIX unconditionally
-  // Matches: if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT) ... endif()
-  final badInstallPattern = RegExp(
+  RegExp badInstallPattern = RegExp(
     r'if\s*\(\s*CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT\s*\)[\s\S]*?endif\s*\(\s*\)',
     multiLine: true,
   );
 
-  const goodInstall =
+  String goodInstall =
       'set(CMAKE_INSTALL_PREFIX "\${BUILD_BUNDLE_DIR}" CACHE PATH "Installation prefix" FORCE)';
 
   if (badInstallPattern.hasMatch(content)) {
@@ -312,11 +310,11 @@ bool patchRootCMake(Directory dir, String baseName, {StringSink? out}) {
 
   // 2. Inject flavor-aware binary name macro if not already added
   if (!content.contains('FLUTTER_APP_FLAVOR')) {
-    final binaryRegex = RegExp(r'^\s*set\s*\(\s*BINARY_NAME\s+"[^"]+"\s*\)', multiLine: true);
-    final flavorMacro = '''
-if(DEFINED ENV{APP_FLAVOR})
+    RegExp binaryRegex = RegExp(r'^\s*set\s*\(\s*BINARY_NAME\s+"[^"]+"\s*\)', multiLine: true);
+    String flavorMacro = '''
+if(NOT "\$ENV{APP_FLAVOR}" STREQUAL "")
   set(BINARY_NAME "${baseName}_\$ENV{APP_FLAVOR}")
-elseif(DEFINED ENV{FLUTTER_APP_FLAVOR})
+elseif(NOT "\$ENV{FLUTTER_APP_FLAVOR}" STREQUAL "")
   set(BINARY_NAME "${baseName}_\$ENV{FLUTTER_APP_FLAVOR}")
 else()
   set(BINARY_NAME "$baseName")
@@ -343,20 +341,21 @@ bool patchRunnerCMake(Directory dir, {StringSink? out}) {
   if (!content.contains('RUNTIME_OUTPUT_DIRECTORY')) {
     // Locate the closing parenthesis of add_executable(...)
     // Matches "runner.exe.manifest" followed by whitespace/newlines and the closing ")"
-    final addExecutableCloseRegex = RegExp(
+    RegExp addExecutableCloseRegex = RegExp(
       r'("runner\.exe\.manifest"\s*\r?\n\s*\))',
     );
 
-    const flavorProperties = '''"runner.exe.manifest"
+    String flavorProperties = '''"runner.exe.manifest"
 )
 
-if(DEFINED ENV{APP_FLAVOR})
+set(TARGET_FLAVOR "")
+if(NOT "\$ENV{APP_FLAVOR}" STREQUAL "")
   set(TARGET_FLAVOR "\$ENV{APP_FLAVOR}")
-elseif(DEFINED ENV{FLUTTER_APP_FLAVOR})
+elseif(NOT "\$ENV{FLUTTER_APP_FLAVOR}" STREQUAL "")
   set(TARGET_FLAVOR "\$ENV{FLUTTER_APP_FLAVOR}")
 endif()
 
-if(DEFINED TARGET_FLAVOR)
+if(NOT "\${TARGET_FLAVOR}" STREQUAL "")
   set_target_properties(\${BINARY_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "\${CMAKE_BINARY_DIR}/runner/\${TARGET_FLAVOR}/\$<CONFIG>"
     RUNTIME_OUTPUT_DIRECTORY_DEBUG "\${CMAKE_BINARY_DIR}/runner/\${TARGET_FLAVOR}/Debug"
