@@ -211,13 +211,14 @@ int run(
   }
 
   if (flavors.isEmpty) {
-    stdout.writeln('No flavors specified with -f. Attempting auto-detection...');
+    stdout
+        .writeln('No flavors specified with -f. Attempting auto-detection...');
     flavors = detectFlavors(dir);
 
     if (flavors.isEmpty) {
       stderr.writeln(
         'Could not auto-detect flavors. Please pass flavors explicitly:\n'
-            '  windows_flavor_tool -f dev,staging,prod',
+        '  windows_flavor_tool -f dev,staging,prod',
       );
       exit(1);
     }
@@ -295,19 +296,24 @@ bool patchRootCMake(Directory dir, String baseName, {StringSink? out}) {
 
   String content = file.readAsStringSync();
 
-  // Fix install prefix force to prevent Program Files permission error
-  String badInstallPattern =
-      'if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)\n  set(CMAKE_INSTALL_PREFIX "\${BUILD_BUNDLE_DIR}" CACHE PATH "..." FORCE)\nendif()';
-  String goodInstall =
+  // 1. Force CMAKE_INSTALL_PREFIX unconditionally
+  // Matches: if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT) ... endif()
+  final badInstallPattern = RegExp(
+    r'if\s*\(\s*CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT\s*\)[\s\S]*?endif\s*\(\s*\)',
+    multiLine: true,
+  );
+
+  const goodInstall =
       'set(CMAKE_INSTALL_PREFIX "\${BUILD_BUNDLE_DIR}" CACHE PATH "Installation prefix" FORCE)';
-  if (content.contains(badInstallPattern)) {
+
+  if (badInstallPattern.hasMatch(content)) {
     content = content.replaceFirst(badInstallPattern, goodInstall);
   }
 
-  // Inject flavor-aware binary name macro if not already added
+  // 2. Inject flavor-aware binary name macro if not already added
   if (!content.contains('FLUTTER_APP_FLAVOR')) {
-    RegExp binaryRegex = RegExp(r'set\(BINARY_NAME\s*"[^"]+"\s*\)');
-    String flavorMacro = '''
+    final binaryRegex = RegExp(r'^\s*set\s*\(\s*BINARY_NAME\s+"[^"]+"\s*\)', multiLine: true);
+    final flavorMacro = '''
 if(DEFINED ENV{APP_FLAVOR})
   set(BINARY_NAME "${baseName}_\$ENV{APP_FLAVOR}")
 elseif(DEFINED ENV{FLUTTER_APP_FLAVOR})
@@ -335,9 +341,15 @@ bool patchRunnerCMake(Directory dir, {StringSink? out}) {
   String content = file.readAsStringSync();
 
   if (!content.contains('RUNTIME_OUTPUT_DIRECTORY')) {
-    String targetAnchor = 'add_executable(\${BINARY_NAME} WIN32';
-    String flavorProperties = '''
-add_executable(\${BINARY_NAME} WIN32
+    // Locate the closing parenthesis of add_executable(...)
+    // Matches "runner.exe.manifest" followed by whitespace/newlines and the closing ")"
+    final addExecutableCloseRegex = RegExp(
+      r'("runner\.exe\.manifest"\s*\r?\n\s*\))',
+    );
+
+    const flavorProperties = '''"runner.exe.manifest"
+)
+
 if(DEFINED ENV{APP_FLAVOR})
   set(TARGET_FLAVOR "\$ENV{APP_FLAVOR}")
 elseif(DEFINED ENV{FLUTTER_APP_FLAVOR})
@@ -353,10 +365,15 @@ if(DEFINED TARGET_FLAVOR)
   )
 endif()''';
 
-    content = content.replaceFirst(targetAnchor, flavorProperties);
-    file.writeAsStringSync(content);
-    output.writeln(' [x] Patched windows/runner/CMakeLists.txt');
-    return true;
+    if (addExecutableCloseRegex.hasMatch(content)) {
+      content = content.replaceFirst(addExecutableCloseRegex, flavorProperties);
+      file.writeAsStringSync(content);
+      output.writeln(' [x] Patched windows/runner/CMakeLists.txt');
+      return true;
+    } else {
+      output.writeln(' [!] Could not locate closing parenthesis of add_executable in windows/runner/CMakeLists.txt');
+      return false;
+    }
   }
   return false;
 }
