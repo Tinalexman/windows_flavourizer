@@ -68,14 +68,14 @@ dart run windows_flavourizer [options]
 
 ## ⚙️ CLI Options
 
-| Option | Abbreviation |         Default          | Description |
-|---|:------------:|:------------------------:|---|
-| `--flavors` |     `-f`     |            -             | Comma-separated list of flavors to generate configurations for. |
-| `--ide` |     `-i`     |          `all`           | Target IDE configurations to generate: `intellij`, `vscode`, or `all`. |
-| `--base-name` |     `-n`     | `name` in `pubspec.yaml` | Base binary name for the executable. |
-| `--scaffold-entry-points` |     `-s`     |            -             | Automatically create lib/main_<flavor>.dart if missing. |
-| `--help` |     `-h`     |            -             | Show usage information and exit. |
-| `--version` |     `-v`     |            -             | Show version information and exit. |
+| Option | Abbreviation | Default | Description |
+|---|:---:|:---:|---|
+| `--flavors` | `-f` | Auto-detected | Comma-separated list of flavors. Auto-detects from `lib/main_*.dart`, `android/app/build.gradle`, or `pubspec.yaml` if omitted. |
+| `--ide` | `-i` | `all` | Target IDE configurations to generate: `intellij`, `vscode`, or `all`. |
+| `--base-name` | `-n` | `name` in `pubspec.yaml` | Base binary name for the executable. |
+| `--scaffold-entry-points` | `-s` | `false` | Automatically create `lib/main_<flavor>.dart` entrypoints for missing flavors. |
+| `--help` | `-h` | - | Show usage information and exit. |
+| `--version` | `-v` | - | Show version information and exit. |
 
 ---
 
@@ -149,6 +149,8 @@ my_flutter_app/
    - **Windows (All Flavors)** *(launches all flavors simultaneously)*
 3. Press **F5** to start debugging.
 
+![VS Code Multi-Flavor Debug Preview](assets/flavor_preview_vs_code.jpeg)
+
 ### IntelliJ IDEA / Android Studio
 1. Reload or restart the IDE project if needed.
 2. Select your run configuration from the top toolbar dropdown:
@@ -157,6 +159,8 @@ my_flutter_app/
    - **Windows (prod)**
    - **Windows (All Flavors)**
 3. Click the **Run** or **Debug** icon.
+
+![IntelliJ Multi-Flavor Run Preview](assets/flavor_preview_intellij.jpeg)
 
 ---
 

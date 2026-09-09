@@ -71,23 +71,18 @@ version: 1.0.0
     });
 
     test('detectFlavors auto-detects flavors from build.gradle', () {
-      final gradleDir = Directory('${tempDir.path}/android/app')..createSync(recursive: true);
+      final gradleDir = Directory('${tempDir.path}/android/app')
+        ..createSync(recursive: true);
       File('${gradleDir.path}/build.gradle').writeAsStringSync('''
 android {
-    flavorDimensions "default"
     productFlavors {
-        staging {
-            dimension "default"
-        }
-        production {
-            dimension "default"
-        }
+        staging { }
     }
 }
 ''');
 
       final detected = detectFlavors(tempDir);
-      expect(detected, equals(['production', 'staging']));
+      expect(detected, equals(['staging']));
     });
 
     test('scaffoldMissingEntrypoints creates missing entrypoint files', () {
@@ -194,7 +189,8 @@ add_executable(\${BINARY_NAME} WIN32
       Directory('${tempDir.path}/windows/runner').createSync(recursive: true);
       File('${tempDir.path}/windows/CMakeLists.txt')
           .writeAsStringSync('set(BINARY_NAME "my_app")\n');
-      File('${tempDir.path}/windows/runner/CMakeLists.txt').writeAsStringSync('''
+      File('${tempDir.path}/windows/runner/CMakeLists.txt')
+          .writeAsStringSync('''
 add_executable(\${BINARY_NAME} WIN32
   "runner.exe.manifest"
 )

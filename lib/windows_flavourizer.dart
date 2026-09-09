@@ -310,7 +310,8 @@ bool patchRootCMake(Directory dir, String baseName, {StringSink? out}) {
 
   // 2. Inject flavor-aware binary name macro if not already added
   if (!content.contains('FLUTTER_APP_FLAVOR')) {
-    RegExp binaryRegex = RegExp(r'^\s*set\s*\(\s*BINARY_NAME\s+"[^"]+"\s*\)', multiLine: true);
+    RegExp binaryRegex =
+        RegExp(r'^\s*set\s*\(\s*BINARY_NAME\s+"[^"]+"\s*\)', multiLine: true);
     String flavorMacro = '''
 if(NOT "\$ENV{APP_FLAVOR}" STREQUAL "")
   set(BINARY_NAME "${baseName}_\$ENV{APP_FLAVOR}")
@@ -370,7 +371,8 @@ endif()''';
       output.writeln(' [x] Patched windows/runner/CMakeLists.txt');
       return true;
     } else {
-      output.writeln(' [!] Could not locate closing parenthesis of add_executable in windows/runner/CMakeLists.txt');
+      output.writeln(
+          ' [!] Could not locate closing parenthesis of add_executable in windows/runner/CMakeLists.txt');
       return false;
     }
   }
