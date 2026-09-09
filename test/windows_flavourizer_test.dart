@@ -10,11 +10,12 @@ void main() {
       final parser = buildArgParser();
       final results = parser.parse([]);
 
-      expect(results['flavors'], equals(['dev', 'staging', 'prod']));
+      expect(results['flavors'], equals([]));
       expect(results['ide'], equals('all'));
       expect(results['base-name'], isNull);
       expect(results['help'], isFalse);
       expect(results['version'], isFalse);
+      expect(results['scaffold-entry-points'], isFalse);
     });
 
     test('parses custom flags', () {
@@ -26,11 +27,13 @@ void main() {
         'vscode',
         '-n',
         'custom_app',
+        '-s',
       ]);
 
       expect(results['flavors'], equals(['alpha', 'beta']));
       expect(results['ide'], equals('vscode'));
       expect(results['base-name'], equals('custom_app'));
+      expect(results['scaffold-entry-points'], isTrue);
     });
   });
 
@@ -56,6 +59,46 @@ version: 1.0.0
 
       final name = extractProjectName(tempDir);
       expect(name, equals('my_test_project'));
+    });
+
+    test('detectFlavors auto-detects flavors from lib/main_*.dart', () {
+      final libDir = Directory('${tempDir.path}/lib')..createSync();
+      File('${libDir.path}/main_dev.dart').writeAsStringSync('void main() {}');
+      File('${libDir.path}/main_prod.dart').writeAsStringSync('void main() {}');
+
+      final detected = detectFlavors(tempDir);
+      expect(detected, equals(['dev', 'prod']));
+    });
+
+    test('detectFlavors auto-detects flavors from build.gradle', () {
+      final gradleDir = Directory('${tempDir.path}/android/app')..createSync(recursive: true);
+      File('${gradleDir.path}/build.gradle').writeAsStringSync('''
+android {
+    flavorDimensions "default"
+    productFlavors {
+        staging {
+            dimension "default"
+        }
+        production {
+            dimension "default"
+        }
+    }
+}
+''');
+
+      final detected = detectFlavors(tempDir);
+      expect(detected, equals(['production', 'staging']));
+    });
+
+    test('scaffoldMissingEntrypoints creates missing entrypoint files', () {
+      scaffoldMissingEntrypoints(tempDir, 'my_app', ['dev', 'prod']);
+
+      final devEntry = File('${tempDir.path}/lib/main_dev.dart');
+      final prodEntry = File('${tempDir.path}/lib/main_prod.dart');
+
+      expect(devEntry.existsSync(), isTrue);
+      expect(prodEntry.existsSync(), isTrue);
+      expect(devEntry.readAsStringSync(), contains("currentFlavor = 'dev'"));
     });
 
     test('createPreLaunchScript creates ensure_binary.ps1', () {
@@ -99,6 +142,7 @@ endif()
 cmake_minimum_required(VERSION 3.14)
 add_executable(\${BINARY_NAME} WIN32
   "main.cpp"
+  "runner.exe.manifest"
 )
 ''');
 
@@ -150,8 +194,11 @@ add_executable(\${BINARY_NAME} WIN32
       Directory('${tempDir.path}/windows/runner').createSync(recursive: true);
       File('${tempDir.path}/windows/CMakeLists.txt')
           .writeAsStringSync('set(BINARY_NAME "my_app")\n');
-      File('${tempDir.path}/windows/runner/CMakeLists.txt')
-          .writeAsStringSync('add_executable(\${BINARY_NAME} WIN32\n');
+      File('${tempDir.path}/windows/runner/CMakeLists.txt').writeAsStringSync('''
+add_executable(\${BINARY_NAME} WIN32
+  "runner.exe.manifest"
+)
+''');
 
       final out = StringBuffer();
       final err = StringBuffer();

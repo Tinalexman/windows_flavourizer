@@ -68,13 +68,14 @@ dart run windows_flavourizer [options]
 
 ## ⚙️ CLI Options
 
-| Option | Abbreviation | Default | Description |
-|---|:---:|:---:|---|
-| `--flavors` | `-f` | `dev,staging,prod` | Comma-separated list of flavors to generate configurations for. |
-| `--ide` | `-i` | `all` | Target IDE configurations to generate: `intellij`, `vscode`, or `all`. |
-| `--base-name` | `-n` | `name` in `pubspec.yaml` | Base binary name for the executable. |
-| `--help` | `-h` | - | Show usage information and exit. |
-| `--version` | `-v` | - | Show version information and exit. |
+| Option | Abbreviation |         Default          | Description |
+|---|:------------:|:------------------------:|---|
+| `--flavors` |     `-f`     |            -             | Comma-separated list of flavors to generate configurations for. |
+| `--ide` |     `-i`     |          `all`           | Target IDE configurations to generate: `intellij`, `vscode`, or `all`. |
+| `--base-name` |     `-n`     | `name` in `pubspec.yaml` | Base binary name for the executable. |
+| `--scaffold-entry-points` |     `-s`     |            -             | Automatically create lib/main_<flavor>.dart if missing. |
+| `--help` |     `-h`     |            -             | Show usage information and exit. |
+| `--version` |     `-v`     |            -             | Show version information and exit. |
 
 ---
 
